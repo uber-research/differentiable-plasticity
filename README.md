@@ -6,7 +6,7 @@ There are four different experiments included here:
 
 - `simple`: Binary pattern memorization and completion. Read this one first!
 - `images`: Natural image memorization and completion
-- `Omniglot`: One-shot learning in the Omniglot task
+- `omniglot`: One-shot learning in the Omniglot task
 - `maze`: Maze exploration task (reinforcement learning)
 
 
