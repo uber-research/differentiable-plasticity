@@ -1,0 +1,17 @@
+#tmiconi_omniglot
+#latest
+#.
+
+
+FROM localhost:5000/opus-deep-learning:master-test-2017_9_7_20_56_10
+
+RUN pip3 install scikit-image
+RUN pip3 install click
+RUN mkdir /home/work
+RUN mkdir /home/work/omniglot-master/
+
+COPY ./*.py /home/work/
+ADD ./omniglot-master /home/work/omniglot-master/
+
+ENV LC_ALL C.UTF-8
+ENV  LANG C.UTF-8
