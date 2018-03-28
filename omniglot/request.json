@@ -22,4 +22,5 @@
     "cronCollisionPolicy":"CANCEL_NEW",
     "emailOnFail":[],
     "emailOnSucceed":[]
+
 }

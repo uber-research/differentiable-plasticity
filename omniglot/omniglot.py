@@ -357,7 +357,6 @@ def train(paramdict=None):
             #print("target: ", target.unsqueeze(0)[0][:10])
             absdiff = np.abs(td-yd)
             print("Mean / median / max abs diff:", np.mean(absdiff), np.median(absdiff), np.max(absdiff))
-            print("Correlation (full / sign): ", np.corrcoef(td, yd)[0][1], np.corrcoef(np.sign(td), np.sign(yd))[0][1])
             #print inputs[numstep]
             previoustime = nowtime
             nowtime = time.time()
