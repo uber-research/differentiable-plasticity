@@ -1,8 +1,5 @@
 # Differentiable plasticity: maze exploration task.
-
-# (Note: this contains an EXTREMELY EXPERIMENTAL implementation of an LSTM with plastic connections)
-
-
+#
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +14,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+
+# (Note: this contains an EXTREMELY EXPERIMENTAL implementation of an LSTM with plastic connections)
 
 import argparse
 import pdb 

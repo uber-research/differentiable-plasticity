@@ -1,10 +1,22 @@
 # Differentiable plasticity: binary pattern memorization and reconstruction
 #
+# Copyright (c) 2018 Uber Technologies, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
 # This more flexible implementation includes both plastic and non-plastic RNNs. LSTM code is sufficiently different that it makes more sense to put it in a different file.
 # Also includes some Uber-specific stuff for file transfer. Commented out by default.
 
-
-# Note: The non-plastic RNN DOES end up learning something... after hundreds of thousands of episodes! 
 
 # Parameters optimized for non-plastic architectures (esp. LSTM): 
 # --patternsize 50 --nbaddneurons 2000 --nbprescycles 1 --nbpatterns 2 --prestime 3 --interpresdelay 1 --nbiter 100000 

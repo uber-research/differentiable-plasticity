@@ -1,12 +1,5 @@
 # Differentiable plasticity: natural image memorization and reconstruction.
-
-# This program uses the click module rather than argparse to scan command-line arguments. I won't do that again. 
-
-# You start getting acceptable results after ~3000 episodes (~15 minutes with a standard GPU). Let it run longer for better results.
-
-# To observe the results, run testpics.py (which uses the output files produced by this program)
-
-
+#
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +13,14 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+
+
+# This program uses the click module rather than argparse to scan command-line arguments. I won't do that again. 
+
+# You start getting acceptable results after ~3000 episodes (~15 minutes with a standard GPU). Let it run longer for better results.
+
+# To observe the results, run testpics.py (which uses the output files produced by this program)
+
 
 
 
