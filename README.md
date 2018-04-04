@@ -1,6 +1,6 @@
 ## Differentiable plasticity
 
-This is the code for the upcoming paper "Differentiable plasticity: training plastic networks with gradient descent".
+This repo contains implementations of the algorithms described in [Differentiable plasticity: training plastic networks with gradient descent](), a research paper from Uber AI Labs.
 
 There are four different experiments included here:
 
@@ -14,5 +14,6 @@ We strongly recommend studying the `simple/simple.py` program first, as it is de
 
 The code requires Python 3 and PyTorch 0.3.0 or later. The `images` code also requires scikit-learn. By default our code requires a GPU, but most programs can be run on CPU by simply uncommenting the relevant lines (for others, remove all occurrences of `.cuda()`).
 
-This code is provided for informative purposes only.
+To comment, please open an issue. We will not be accepting pull requests but encourage further study of this research. To learn more, check out our accompanying article on the [Uber Engineering Blog](https://eng.uber.com/differentiable-plasticity).
+
 
