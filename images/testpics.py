@@ -35,8 +35,8 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 
-import pics_tosend as pics
-from pics_tosend import Network
+import images as pics
+from images import Network
 
 plt.figure()
 
