@@ -1,6 +1,6 @@
 ## Differentiable plasticity
 
-This repo contains implementations of the algorithms described in [Differentiable plasticity: training plastic networks with gradient descent](), a research paper from Uber AI Labs.
+This repo contains implementations of the algorithms described in [Differentiable plasticity: training plastic networks with gradient descent](https://arxiv.org/abs/1804.02464), a research paper from Uber AI Labs.
 
 There are four different experiments included here:
 
