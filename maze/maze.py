@@ -1,3 +1,4 @@
+ 
 # Differentiable plasticity: maze exploration task.
 #
 # Copyright (c) 2018 Uber Technologies, Inc.
@@ -33,30 +34,32 @@ import pickle
 import time
 import os
 import platform
-# Uber-only:
-#import OpusHdfsCopy
-#from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 
+# Uber-only:
+import OpusHdfsCopy
+from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
+ 
 import numpy as np
 #import matplotlib.pyplot as plt
 import glob
-
-
-
+ 
+ 
+ 
 np.set_printoptions(precision=4)
-
+ 
 ETA = .02  # Not used
-
-ADDINPUT = 4 # 1 input for the previous reward, 1 input for numstep, 1 unused, 1 "Bias" input
-
+ 
+ADDINPUT = 4 # 1 input for the previous reward, 1 input for numstep, 1 for whether currently on reward square, 1 "Bias" input
+ 
 NBACTIONS = 4  # U, D, L, R
-
+ 
 RFSIZE = 3 # Receptive field size
-
+ 
 TOTALNBINPUTS =  RFSIZE * RFSIZE + ADDINPUT + NBACTIONS
+ 
 
-##ttype = torch.FloatTensor;
-#ttype = torch.cuda.FloatTensor;
+##ttype = torch.FloatTensor;    # For CPU
+ttype = torch.cuda.FloatTensor; # Gor GPU
 
 
 class Network(nn.Module):
@@ -76,6 +79,11 @@ class Network(nn.Module):
         elif params['type'] == 'rnn':
             self.i2h = torch.nn.Linear(TOTALNBINPUTS, params['hiddensize']).cuda()
             self.w =  torch.nn.Parameter((.01 * torch.rand(params['hiddensize'], params['hiddensize'])).cuda(), requires_grad=True)
+        elif params['type'] == 'homo':
+            self.i2h = torch.nn.Linear(TOTALNBINPUTS, params['hiddensize']).cuda()
+            self.w =  torch.nn.Parameter((.01 * torch.rand(params['hiddensize'], params['hiddensize'])).cuda(), requires_grad=True)
+            self.alpha = torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True) # Homogenous plasticity: everyone has the same alpha
+            self.eta = torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)   # Everyone has the same eta
         elif params['type'] == 'plastic':
             self.i2h = torch.nn.Linear(TOTALNBINPUTS, params['hiddensize']).cuda()
             self.w =  torch.nn.Parameter((.01 * torch.rand(params['hiddensize'], params['hiddensize'])).cuda(), requires_grad=True)
@@ -182,6 +190,16 @@ class Network(nn.Module):
                 raise ValueError("Must specify learning rule ('hebb' or 'oja')")
             hidden = hactiv
         
+        elif self.type == 'homo':
+            hactiv = self.activ(self.i2h(input) + hidden.mm(self.w + self.alpha * hebb))
+            if self.rule == 'hebb':
+                hebb = (1 - self.eta) * hebb + self.eta * torch.bmm(hidden.unsqueeze(2), hactiv.unsqueeze(1))[0]
+            elif self.rule == 'oja':
+                hebb = hebb + self.eta * torch.mul((hidden[0].unsqueeze(1) - torch.mul(hebb , hactiv[0].unsqueeze(0))) , hactiv[0].unsqueeze(0))  # Oja's rule. Remember that yin, yout are row vectors (dim (1,N)). Also, broadcasting!
+            else:
+                raise ValueError("Must specify learning rule ('hebb' or 'oja')")
+            hidden = hactiv
+        
         activout = self.softmax(self.h2o(hactiv))   # Action selection
         valueout = self.h2v(hactiv)                 # Value prediction (for A3C)
 
@@ -195,8 +213,10 @@ class Network(nn.Module):
             return (Variable(torch.zeros(1, 1, self.params['hiddensize']), requires_grad=False).cuda() , Variable(torch.zeros(1, 1, self.params['hiddensize']), requires_grad=False ).cuda() )
         elif self.params['type'] == 'lstmmanual' or self.params['type'] == 'lstmplastic':
             return (Variable(torch.zeros(1, self.params['hiddensize']), requires_grad=False).cuda() , Variable(torch.zeros(1, self.params['hiddensize']), requires_grad=False ).cuda() )
-        elif self.params['type'] == 'rnn' or self.params['type'] == 'plastic':
+        elif self.params['type'] == 'rnn' or self.params['type'] == 'plastic' or self.params['type'] == 'homo':
             return Variable(torch.zeros(1, self.params['hiddensize']), requires_grad=False ).cuda() 
+        else:
+            raise ValueError("Which type?")
 
 
 
@@ -273,7 +293,6 @@ def train(paramdict):
         if (numiter+1) % (1 + params['print_every']) == 0:
             PRINTTRACE = 1
 
-        ## Where is the reward square for this episode?
         # Note: it doesn't matter if the reward is on the center (reward is only computed after an action is taken). All we need is not to put it on a wall or pillar (lab=1)
         rposr = 0; rposc = 0
         if params['rp'] == 0:   
@@ -411,7 +430,6 @@ def train(paramdict):
 
         #scheduler.step()
         optimizer.step()
-
         #torch.cuda.empty_cache()  
 
         lossnum = loss.data[0]
@@ -443,34 +461,23 @@ def train(paramdict):
             losslast100 = np.mean(all_losses_objective[-100:])
             print("Average loss over the last 100 episodes:", losslast100)
             print("Saving local files...")
-#            with open('results_'+suffix+'.dat', 'wb') as fo:
-#                    pickle.dump(net.w.data.cpu().numpy(), fo)
-#                    pickle.dump(net.alpha.data.cpu().numpy(), fo)
-#                    pickle.dump(net.eta.data.cpu().numpy(), fo)
-#                    pickle.dump(all_losses, fo)
-#                    pickle.dump(params, fo)
-            #with open('loss_'+suffix+'.txt', 'w') as thefile:
-            #    for item in all_losses_objective:
-            #            thefile.write("%s\n" % item)
+            with open('params_'+suffix+'.dat', 'wb') as fo:
+                    pickle.dump(params, fo)
             with open('lossv_'+suffix+'.txt', 'w') as thefile:
                 for item in all_losses_v:
                         thefile.write("%s\n" % item)
             with open('loss_'+suffix+'.txt', 'w') as thefile:
                 for item in all_losses_eval:
                         thefile.write("%s\n" % item)
-#                torch.save(net.state_dict(), 'torchmodel_'+suffix+'.txt')
+            torch.save(net.state_dict(), 'torchmodel_'+suffix+'.dat')
             # Uber-only
-            #print("Saving HDFS files...")
-            #if checkHdfs():
-            #    print("Transfering to HDFS...")
-            #    #transferFileToHdfsDir('results_'+suffix+'.dat', '/ailabs/tmiconi/omniglot/')
-            #    transferFileToHdfsDir('loss_'+suffix+'.txt', '/ailabs/tmiconi/gridlab/')
-            #    #transferFileToHdfsDir('torchmodel_'+suffix+'.txt', '/ailabs/tmiconi/gridlab/')
+            print("Saving HDFS files...")
+            if checkHdfs():
+                print("Transfering to HDFS...")
+                transferFileToHdfsDir('loss_'+suffix+'.txt', '/ailabs/tmiconi/gridlab/')
+                transferFileToHdfsDir('torchmodel_'+suffix+'.dat', '/ailabs/tmiconi/gridlab/')
+                transferFileToHdfsDir('params_'+suffix+'.dat', '/ailabs/tmiconi/gridlab/')
             #print("Saved!")
-#            lossbetweensavesprev = lossbetweensaves
-#            lossbetweensaves = 0
-#            sys.stdout.flush()
-#            sys.stderr.flush()
 
 
 
