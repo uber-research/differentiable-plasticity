@@ -15,7 +15,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-
+import argparse
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -33,24 +33,56 @@ import time
 import OpusHdfsCopy
 from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 
+# Parsing command-line arguments
+params = {}; params['rngseed'] = 0
+parser = argparse.ArgumentParser()
+parser.add_argument("--rngseed", type=int, help="random seed", default=0)
+parser.add_argument("--nbiter", type=int, help="number of episodes", default=2000)
+parser.add_argument("--clamp", type=int, help="whether inputs are clamping (1) or not (0)", default=1)
+parser.add_argument("--nbaddneurons", type=int, help="number of additional neurons", default=0)
+parser.add_argument("--lr", type=float, help="learning rate of Adam optimizer", default=3e-4)
+parser.add_argument("--patternsize", type=int, help="size of the binary patterns", default=1000)
+parser.add_argument("--nbpatterns", type=int, help="number of patterns to memorize", default=5)
+parser.add_argument("--nbprescycles", type=int, help="number of presentation cycles", default=2)
+parser.add_argument("--prestime", type=int, help="number of time steps for each pattern presentation", default=6)
+parser.add_argument("--interpresdelay", type=int, help="number of time steps between each pattern presentation (with zero input)", default=4)
+parser.add_argument("--type", help="network type ('plastic' or 'nonplastic')", default='plastic')
+args = parser.parse_args(); argvars = vars(args); argdict =  { k : argvars[k] for k in argvars if argvars[k] != None }
+params.update(argdict)
 
-PATTERNSIZE = 50 
-
-# Note: For LSTM, there are PATTERNSIZE input and output neurons, and NBHIDDENNEUR neurons in the hidden recurrent layer
-#NBNEUR = PATTERNSIZE  # NbNeur = Pattern Size + 1 "bias", fixed-output neuron (bias neuron not needed for this task, but included for completeness)
-NBHIDDENNEUR = 2000  #  1000 takes longer 
-
-#ETA = .01               # The "learning rate" of plastic connections. Not used for LSTMs.
-ADAMLEARNINGRATE = 3e-5 # 1e-4  # 3e-5 works better in the long run. 1e-4 OK. 3e-4 fails.
-RNGSEED = 0
+PATTERNSIZE = params['patternsize']
+NBHIDDENNEUR = PATTERNSIZE + params['nbaddneurons'] + 1  # NbNeur = Pattern Size + additional neurons + 1 "bias", fixed-output neuron (bias neuron not needed for this task, but included for completeness)
+ETA = .01               # The "learning rate" of plastic connections; not used for LSTMs
+ADAMLEARNINGRATE = params['lr']
 
 PROBADEGRADE = .5       # Proportion of bits to zero out in the target pattern at test time
-NBPATTERNS = 2          # The number of patterns to learn in each episode
-NBPRESCYCLES = 1        # Number of times each pattern is to be presented
-PRESTIME = 3            # Number of time steps for each presentation
-PRESTIMETEST = 3        # Same thing but for the final test pattern
-INTERPRESDELAY = 1      # Duration of zero-input interval between presentations
+CLAMPING = params['clamp']
+NBPATTERNS = params['nbpatterns'] # The number of patterns to learn in each episode
+NBPRESCYCLES = params['nbprescycles']        # Number of times each pattern is to be presented
+PRESTIME = params['prestime'] # Number of time steps for each presentation
+PRESTIMETEST = PRESTIME        # Same thing but for the final test pattern
+INTERPRESDELAY = params['interpresdelay']      # Duration of zero-input interval between presentations
 NBSTEPS = NBPRESCYCLES * ((PRESTIME + INTERPRESDELAY) * NBPATTERNS) + PRESTIMETEST  # Total number of steps per episode
+
+RNGSEED = params['rngseed']
+
+#PATTERNSIZE = 50 
+#
+## Note: For LSTM, there are PATTERNSIZE input and output neurons, and NBHIDDENNEUR neurons in the hidden recurrent layer
+##NBNEUR = PATTERNSIZE  # NbNeur = Pattern Size + 1 "bias", fixed-output neuron (bias neuron not needed for this task, but included for completeness)
+#NBHIDDENNEUR = 2000  #  1000 takes longer 
+#
+##ETA = .01               # The "learning rate" of plastic connections. Not used for LSTMs.
+#ADAMLEARNINGRATE = 3e-5 # 1e-4  # 3e-5 works better in the long run. 1e-4 OK. 3e-4 fails.
+#RNGSEED = 0
+#
+#PROBADEGRADE = .5       # Proportion of bits to zero out in the target pattern at test time
+#NBPATTERNS = 2          # The number of patterns to learn in each episode
+#NBPRESCYCLES = 1        # Number of times each pattern is to be presented
+#PRESTIME = 3            # Number of time steps for each presentation
+#PRESTIMETEST = 3        # Same thing but for the final test pattern
+#INTERPRESDELAY = 1      # Duration of zero-input interval between presentations
+#NBSTEPS = NBPRESCYCLES * ((PRESTIME + INTERPRESDELAY) * NBPATTERNS) + PRESTIMETEST  # Total number of steps per episode
 
 #ttype = torch.FloatTensor;
 ttype = torch.cuda.FloatTensor;
@@ -113,7 +145,6 @@ class NETWORK(nn.Module):
     def forward(self, inputs,):
         # Run the network over entire sequence of inputs
         self.hidden = self.initialZeroState()
-        CLAMPING=1
         if CLAMPING:
             # This code allows us to make the inputs on the LSTM "clamping",
             # i.e. neurons that receive an input have their output clamped at
