@@ -28,6 +28,8 @@ import sys
 import pickle as pickle
 import pdb
 import time
+
+# Uber-only (comment out if not at Uber)
 import OpusHdfsCopy
 from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 
@@ -202,9 +204,16 @@ for numiter in range(1000000):
         all_losses.append(total_loss)
         print("Mean loss over last", print_every, "iters:", total_loss)
         print("")
-        with open('loss_binary_lstm_nbhiddenneur_'+str(NBHIDDENNEUR)+'_lr_'+str(ADAMLEARNINGRATE)+'_prestime_'+str(PRESTIME)+'_interpresdelay_'+str(INTERPRESDELAY)+'_rngseed_'+str(RNGSEED)+'.txt', 'w') as fo:
+        fname = 'loss_binary_lstm_nbhiddenneur_'+str(NBHIDDENNEUR)+'_lr_'+str(ADAMLEARNINGRATE)+'_prestime_'+str(PRESTIME)+'_interpresdelay_'+str(INTERPRESDELAY)+'_rngseed_'+str(RNGSEED)+'.txt'
+        with open(fname, 'w') as fo:
             for item in all_losses:
                 fo.write("%s\n" % item)
+
+        # Uber-only (comment out if not at Uber)
+        if checkHdfs():
+            print("Transfering to HDFS...")
+            transferFileToHdfsDir(fname, '/ailabs/tmiconi/simple/')
+
         total_loss = 0
 
 

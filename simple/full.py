@@ -36,9 +36,10 @@ import sys
 import pickle
 import pdb
 import time
-# Uber-only:
-#import OpusHdfsCopy
-#from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
+
+# Uber-only (comment out if not at Uber):
+import OpusHdfsCopy
+from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 
 
 # Parsing command-line arguments
@@ -208,10 +209,11 @@ for numiter in range(params['nbiter']):
             for item in all_losses:
                 fo.write("%s\n" % item)
         # Uber-only
-        #if checkHdfs():
-        #    print("Transfering to HDFS...")
-        #    transferFileToHdfsDir('loss_'+suffix+'.txt', '/ailabs/tmiconi/exp/')
-        #    #transferFileToHdfsDir('results_simple_'+str(params['rngseed'])+'.dat', '/ailabs/tmiconi/exp/')
+        if checkHdfs():
+            print("Transfering to HDFS...")
+            transferFileToHdfsDir('loss_'+suffix+'.txt', '/ailabs/tmiconi/simple/')
+            #transferFileToHdfsDir('results_simple_'+str(params['rngseed'])+'.dat', '/ailabs/tmiconi/exp/')
+
         total_loss = 0
 
 
