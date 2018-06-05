@@ -158,7 +158,8 @@ np.random.seed(params['rngseed']); random.seed(params['rngseed']); torch.manual_
 net = NETWORK()
 optimizer = torch.optim.Adam([net.w, net.alpha, net.eta], lr=ADAMLEARNINGRATE)
 total_loss = 0.0; all_losses = []
-print_every = 1000
+print_every = 100
+save_every = 1000
 nowtime = time.time()
 suffix = "binary_"+"".join([str(x)+"_" if pair[0] is not 'nbsteps' and pair[0] is not 'rngseed' and pair[0] is not 'save_every' and pair[0] is not 'test_every' else '' for pair in sorted(zip(params.keys(), params.values()), key=lambda x:x[0] ) for x in pair])[:-1] + "_rngseed_" + str(params['rngseed'])   # Turning the parameters into a nice suffix for filenames
 
@@ -200,6 +201,7 @@ for numiter in range(params['nbiter']):
         all_losses.append(total_loss)
         print("Mean loss over last", print_every, "iters:", total_loss)
         print("")
+    if (numiter+1) % save_every == 0:
         with open('outputs_'+suffix+'.dat', 'wb') as fo:
             pickle.dump(net.w.data.cpu().numpy(), fo)
             pickle.dump(net.alpha.data.cpu().numpy(), fo)

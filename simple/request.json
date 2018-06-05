@@ -1,9 +1,9 @@
 {
     "dockerImage":"tmiconi_rl", 
     "tag":"master-test-2018_6_4_16_16_35",
-    "name":"Exp_simple_lstm",
+    "name":"Exp_simple_1Miter_0addneur_nonplastic",
     "cpus":2.0,
-    "cmdLine":"export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \u0026\u0026  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/nvidia/bin:/opt/hadoop/latest/bin \u0026\u0026 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib64/  \u0026\u0026  export LC_ALL=C.UTF-8  \u0026\u0026   export LANG=C.UTF-8  \u0026\u0026  cd /home/work/ \u0026\u0026 python3 full.py --patternsize 50 --nbaddneurons 0 --nbprescycles 1 --nbpatterns 2 --prestime 3 --interpresdelay 1 --nbiter 100000 --type nonplastic --rngseed {{mesos.instance}}",
+    "cmdLine":"export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \u0026\u0026  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/nvidia/bin:/opt/hadoop/latest/bin \u0026\u0026 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib64/  \u0026\u0026  export LC_ALL=C.UTF-8  \u0026\u0026   export LANG=C.UTF-8  \u0026\u0026  cd /home/work/ \u0026\u0026 python3 full.py --patternsize 50 --nbaddneurons 0 --nbprescycles 1 --nbpatterns 2 --prestime 3 --interpresdelay 1 --nbiter 1000000 --type nonplastic --rngseed {{mesos.instance}}",
     "ramMB":8000,
     "gpus":1,
     "diskMB":8000,
