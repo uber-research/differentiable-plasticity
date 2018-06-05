@@ -190,7 +190,7 @@ np.random.seed(RNGSEED); random.seed(RNGSEED); torch.manual_seed(RNGSEED)
 net = NETWORK()
 optimizer = torch.optim.Adam(net.parameters(), lr=ADAMLEARNINGRATE)
 total_loss = 0.0; all_losses = []
-print_every = 100
+print_every = 1000
 nowtime = time.time()
 
 for numiter in range(1000000):
@@ -235,7 +235,7 @@ for numiter in range(1000000):
         all_losses.append(total_loss)
         print("Mean loss over last", print_every, "iters:", total_loss)
         print("")
-        fname = 'loss_binary_lstm_nbhiddenneur_'+str(NBHIDDENNEUR)+'_lr_'+str(ADAMLEARNINGRATE)+'_prestime_'+str(PRESTIME)+'_interpresdelay_'+str(INTERPRESDELAY)+'_rngseed_'+str(RNGSEED)+'.txt'
+        fname = 'loss_binary_lstm_nbhneur_'+str(NBHIDDENNEUR)+'_lr_'+str(ADAMLEARNINGRATE)+'_prestime_'+str(PRESTIME)+'_interpresdelay_'+str(INTERPRESDELAY)+'_rngseed_'+str(RNGSEED)+'.txt'
         with open(fname, 'w') as fo:
             for item in all_losses:
                 fo.write("%s\n" % item)
