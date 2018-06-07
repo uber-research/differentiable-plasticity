@@ -1,3 +1,26 @@
+# Differentiable plasticity: Omniglot task.
+
+# Copyright (c) 2018 Uber Technologies, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+
+# Using the output files produced by multiple runs of omniglot.py, test the
+# trained networks and report their performance (using withheld test classes).
+
+# NOTE: you need to specify the suffix of the files you want to test (see
+# definition of suffix below). Also be sure to use the proper directory.
+
 import pdb 
 import torch
 import torch.nn as nn
@@ -15,12 +38,9 @@ import time
 import skimage
 from skimage import transform
 import os
-import OpusHdfsCopy
-from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 import platform
 
 
-import numpy as np
 import matplotlib.pyplot as plt
 import glob
 
@@ -34,12 +54,13 @@ np.set_printoptions(precision=4)
 
 
 defaultParams = {
-    'nbclasses': 3,
+# Not really used as the parameters will be read from the saved files
+    'nbclasses': 5,
     'nbshots': 1,  # Number of 'shots' in the few-shots learning
-    'prestime': 5,
+    'prestime': 1,
     'nbfeatures' : 64    ,
-    'prestimetest': 3,
-    'interpresdelay': 2,
+    'prestimetest': 1,
+    'interpresdelay': 0,
     'imagesize': 31,    # 28*28
     'nbiter': 10000000,
     'learningrate': 1e-5,
@@ -133,7 +154,7 @@ def generateInputsLabelsAndTarget(params, imagedata, test=False):
 
 
 def train(paramdict=None):
-    print("Setting random seed to", 0)
+    print("Initializing random seeds")
     np.random.seed(0); random.seed(0); torch.manual_seed(0)
     print("Starting testing...")
     params = {}
@@ -175,17 +196,10 @@ def train(paramdict=None):
 
     for myseed in range(10):
 
-        # Opus just didn't save some files for the 4000000 iter, for some reason. If you're looking specifically at iter 4000000, uncomment one of these:
-        #if myseed == 3  or myseed == 4:  # for tanh
-        #if myseed == 0  or myseed == 5:  # for selu
-        #    continue
         
-        
-        suffix = "_activation_tanh_alphatype_yoked_flare_0_gamma_0.3_imgsize_31_interpresdelay_0_lr_0.0001_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)
-        #suffix = "_activation_tanh_alphatype_yoked_flare_0_gamma_0.3_imgsize_31_interpresdelay_0_lr_0.0001_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_plastsize_500_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)
-        #suffix = "_activation_tanh_alphatype_yoked_flare_0_gamma_0.3_imgsize_31_interpresdelay_0_lr_0.0001_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_plastsize_500_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)#+"_4000000"
-        #suffix = "_activation_selu_alphatype_free_flare_0_gamma_0.3_imgsize_31_interpresdelay_0_lr_0.0001_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_plastsize_500_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)
-        #suffix = "_activation_selu_alphatype_free_flare_0_gamma_0.3_imgsize_31_interpresdelay_0_lr_0.0001_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_plastsize_500_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)
+        suffix = "_activ_tanh_alpha_free_flare_0_gamma_0.666_imgsize_31_ipd_0_lr_3e-05_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)
+        #suffix = "_activ_tanh_alpha_free_flare_0_gamma_0.3_imgsize_31_ipd_0_lr_3e-05_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)#+"_2000000"
+        #suffix = "_activ_tanh_alpha_free_flare_0_gamma_0.666_imgsize_31_ipd_0_lr_3e-05_nbclasses_5_nbfeatures_64_nbiter_5000000_nbshots_1_prestime_1_prestimetest_1_rule_oja_stepsizelr_1000000.0_rngseed_"+str(myseed)#+"_3000000"
         with open('./tmp/results'+suffix+'.dat', 'rb') as fo:
             tmpw = torch.nn.Parameter(torch.from_numpy(pickle.load(fo)).type(ttype))
             tmpalpha = torch.nn.Parameter(torch.from_numpy(pickle.load(fo)).type(ttype))
@@ -301,8 +315,12 @@ def train(paramdict=None):
         totaliter += params['nbiter']
 
     print ("Mean / stdev success rate across runs: ", np.mean(successrates), np.std(successrates))
-    print ("Success rate across all trials:", 100.0 - 100.0 * totalmistakes / totaliter)
+    totalsuccessrate = 1.0 - totalmistakes / totaliter
+    pointestCI = 1.96 * np.sqrt(totalsuccessrate * (1.0 - totalsuccessrate) / totaliter)
+    print ("Success % across all trials (95% CI point estimate):", 100.0 * totalsuccessrate, "+/-", 100.0 * pointestCI)
     print (totalmistakes, "mistakes out of ", totaliter, "trials")
+
+
     print ("Median success rate across runs: ", np.median(successrates))
 
 

@@ -19,8 +19,9 @@
 
 
 # Parameters optimized for non-plastic architectures (esp. LSTM): 
-# --patternsize 50 --nbaddneurons 2000 --nbprescycles 1 --nbpatterns 2 --prestime 3 --interpresdelay 1 --nbiter 100000 
+# --patternsize 50 --nbaddneurons 2000 --nbprescycles 1 --nbpatterns 2 --prestime 3 --interpresdelay 1 --nbiter 1000000 --lr 3e-5
 # For comparing plastic and non-plastic, we use these for both (though the plastic architecture strongly prefers the default ones)
+# Plastic networks can learn with lr=3e-4.
 # The default parameters are those for the plastic RNN on the 1000-bit task (same as simple.py) 
 
 import argparse

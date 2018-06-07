@@ -1,9 +1,5 @@
 # Differentiable plasticity: Omniglot task.
 
-# You must download the Python version of the Omniglot dataset (https://github.com/brendenlake/omniglot), and move the 'omniglot-master' directory inside this directory.
-
-
-
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +15,18 @@
 #    limitations under the License.
 
 
+# You MUST download the Python version of the Omniglot dataset
+# (https://github.com/brendenlake/omniglot), and move the 'omniglot-master'
+# directory inside this directory.
+
+# To get the results shown in the paper:
+# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --rule oja --activ tanh --stepsizelr 1000000 --prestime 1 --gamma .666 --alpha free --lr 3e-5 
+
+# Alternative (using a shared, though still learned alpha across all connections): 
+# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --activ tanh --stepsizelr 1000000 --prestime 1 --gamma 0.3 --lr 1e-4 --alpha yoked 
+
+# Note that this code uses click rather than argparse for command-line
+# parameter handling. I won't do that again.
 
 import pdb 
 import torch
@@ -40,13 +48,13 @@ from skimage import transform
 from skimage import io
 import os
 import platform
+
 # Uber-only
 #import OpusHdfsCopy
 #from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
 
 
 import numpy as np
-#import matplotlib.pyplot as plt
 import glob
 
 
@@ -54,28 +62,23 @@ import glob
 
 
 np.set_printoptions(precision=4)
-
-# To produce the results in the paper:
-# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --rule oja --activation tanh --stepsizelr 1000000 --prestime 1 --gamma 0.3 --alphatype yoked --lr 1e-4 
-# (These should be the same as the default parameters, unless we missed something)
-
 defaultParams = {
-    'activation': 'tanh',
+    'activ': 'tanh',    # 'tanh' or 'selu'
     #'plastsize': 200,
-    'rule': 'hebb',
-    'alphatype': 'yoked',
-    'stepsizelr': 1000000,  # Learning rate annealing step duration
+    'rule': 'hebb',     # 'hebb' or 'oja'
+    'alpha': 'free',   # 'free' of 'yoked' (if the latter, alpha is a single scalar learned parameter, shared across all connection)
+    'stepsizelr': 1e6,  # How often should we change the learning rate?
     'nbclasses': 5,
-    'gamma': .3,  # The annealing factor of learning rate decay for Adam
+    'gamma': .666,  # The annealing factor of learning rate decay for Adam
     'flare': 0,     # Whether or not the ConvNet has more features in higher channels
     'nbshots': 1,  # Number of 'shots' in the few-shots learning
     'prestime': 1,
-    'nbfeatures' : 64,  
+    'nbfeatures' : 64,  # 128 is better (unsurprisingly) but we keep 64 for fair comparison with other reports
     'prestimetest': 1,
-    'interpresdelay': 0,
+    'ipd': 0,  # Inter-presentation delay 
     'imgsize': 31,    
-    'nbiter': 5000000, 
-    'lr': 1e-4,   # Initial learning rate
+    'nbiter': 5000000,  
+    'lr': 3e-5, 
     'test_every': 500,
     'save_every': 5000,
     'rngseed':0
@@ -92,7 +95,7 @@ ttype = torch.cuda.FloatTensor;
 # Generate the full list of inputs, labels, and the target label for an episode
 def generateInputsLabelsAndTarget(params, imagedata, test=False):
     #print(("Input Boost:", params['inputboost']))
-    #params['nbsteps'] = params['nbshots'] * ((params['prestime'] + params['interpresdelay']) * params['nbclasses']) + params['prestimetest'] 
+    #params['nbsteps'] = params['nbshots'] * ((params['prestime'] + params['ipd']) * params['nbclasses']) + params['prestimetest'] 
     inputT = np.zeros((params['nbsteps'], 1, 1, params['imgsize'], params['imgsize']))    #inputTensor, initially in numpy format... Note dimensions: number of steps x batchsize (always 1) x NbChannels (also 1) x h x w 
     labelT = np.zeros((params['nbsteps'], 1, params['nbclasses']))      #labelTensor, initially in numpy format...
 
@@ -128,14 +131,14 @@ def generateInputsLabelsAndTarget(params, imagedata, test=False):
                 p = np.rot90(p)
             p = skimage.transform.resize(p, (31, 31))
             for nn in range(params['prestime']):
-                #numi =nc * (params['nbclasses'] * (params['prestime']+params['interpresdelay'])) + ii * (params['prestime']+params['interpresdelay']) + nn
+                #numi =nc * (params['nbclasses'] * (params['prestime']+params['ipd'])) + ii * (params['prestime']+params['ipd']) + nn
 
                 inputT[location][0][0][:][:] = p[:][:]
                 labelT[location][0][np.where(unpermcats == catnum)] = 1 # The (one-hot) label is the position of the category number in the original (unpermuted) list
                 #if nn == 0:
                 #    print(labelT[location][0])
                 location += 1
-            location += params['interpresdelay']
+            location += params['ipd']
 
     # Inserting the test character
     p = random.choice(imagedata[testcat])
@@ -156,7 +159,7 @@ def generateInputsLabelsAndTarget(params, imagedata, test=False):
     
     assert(location == params['nbsteps'])
 
-    inputT = torch.from_numpy(inputT).type(ttype)  # Convert from numpy to Tensor
+    inputT = torch.from_numpy(inputT).type(ttype)  # Convert from numpy to pytorch Tensor
     labelT = torch.from_numpy(labelT).type(ttype)
     targetL = torch.from_numpy(testlabel).type(ttype)
 
@@ -179,6 +182,9 @@ class Network(nn.Module):
             self.cv3 = torch.nn.Conv2d(params['nbfeatures'] , params['nbfeatures'] , 3, stride=2).cuda()
             self.cv4 = torch.nn.Conv2d(params['nbfeatures'] ,  params['nbfeatures'], 3, stride=2).cuda()
         
+        # Alternative architecture: have a separate layer of
+        # plastic weights between the embedding and the output. We don't use
+        # this in the paper.
         #self.conv2plast = torch.nn.Linear(params['nbfeatures'], params['plastsize']).cuda()
 
         # Notice that the vectors are row vectors, and the matrices are transposed wrt the usual order, following apparent pytorch conventions
@@ -186,53 +192,51 @@ class Network(nn.Module):
         
         self.w =  torch.nn.Parameter((.01 * torch.randn(params['nbfeatures'], params['nbclasses'])).cuda(), requires_grad=True)
         #self.w =  torch.nn.Parameter((.01 * torch.rand(params['plastsize'], params['nbclasses'])).cuda(), requires_grad=True)
-        if params['alphatype'] == 'free':
+        if params['alpha'] == 'free':
             self.alpha =  torch.nn.Parameter((.01 * torch.rand(params['nbfeatures'], params['nbclasses'])).cuda(), requires_grad=True) # Note: rand rather than randn (all positive)
-        elif params['alphatype'] == 'yoked':
+        elif params['alpha'] == 'yoked':
             self.alpha =  torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)
         else :
-            raise ValueError("Must select a value for alphatype ('free' or 'yoked')")
+            raise ValueError("Must select a value for alpha ('free' or 'yoked')")
         self.eta = torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)  # Everyone has the same eta
         self.params = params
 
     def forward(self, inputx, inputlabel, hebb):
-        if self.params['activation'] == 'selu':
-            activation = F.selu(self.cv1(inputx))
-            activation = F.selu(self.cv2(activation))
-            activation = F.selu(self.cv3(activation))
-            activation = F.selu(self.cv4(activation))
-        elif self.params['activation'] == 'relu':
-            activation = F.relu(self.cv1(inputx))
-            activation = F.relu(self.cv2(activation))
-            activation = F.relu(self.cv3(activation))
-            activation = F.relu(self.cv4(activation))
-        elif self.params['activation'] == 'tanh':
-            activation = F.tanh(self.cv1(inputx))
-            activation = F.tanh(self.cv2(activation))
-            activation = F.tanh(self.cv3(activation))
-            activation = F.tanh(self.cv4(activation))
+        if self.params['activ'] == 'selu':
+            activ = F.selu(self.cv1(inputx))
+            activ = F.selu(self.cv2(activ))
+            activ = F.selu(self.cv3(activ))
+            activ = F.selu(self.cv4(activ))
+        elif self.params['activ'] == 'relu':
+            activ = F.relu(self.cv1(inputx))
+            activ = F.relu(self.cv2(activ))
+            activ = F.relu(self.cv3(activ))
+            activ = F.relu(self.cv4(activ))
+        elif self.params['activ'] == 'tanh':
+            activ = F.tanh(self.cv1(inputx))
+            activ = F.tanh(self.cv2(activ))
+            activ = F.tanh(self.cv3(activ))
+            activ = F.tanh(self.cv4(activ))
         else:
-            raise ValueError("Parameter 'activation' is incorrect (must be tanh, relu or selu)")
-        #activation = F.tanh(self.conv2plast(activation.view(1, self.params['nbfeatures'])))
-        #activationin = activation.view(-1, self.params['plastsize'])
-        activationin = activation.view(-1, self.params['nbfeatures'])
+            raise ValueError("Parameter 'activ' is incorrect (must be tanh, relu or selu)")
+        #activ = F.tanh(self.conv2plast(activ.view(1, self.params['nbfeatures'])))
+        #activin = activ.view(-1, self.params['plastsize'])
+        activin = activ.view(-1, self.params['nbfeatures'])
         
-        #activationin = activation.view(-1, self.params['nbclasses'])
-        #activation = activationin.mm(self.w + torch.mul(self.alpha, hebb)) + 10.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
-        if self.params['alphatype'] == 'free':
-            activation = activationin.mm( torch.mul(self.alpha, hebb)) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
-        elif self.params['alphatype'] == 'yoked':
-            activation = activationin.mm( self.alpha * hebb) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
-        activationout = F.softmax( activation )
+        if self.params['alpha'] == 'free':
+            activ = activin.mm( torch.mul(self.alpha, hebb)) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
+        elif self.params['alpha'] == 'yoked':
+            activ = activin.mm( self.alpha * hebb) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
+        activout = F.softmax( activ )
         
         if self.rule == 'hebb':
-            hebb = (1 - self.eta) * hebb + self.eta * torch.bmm(activationin.unsqueeze(2), activationout.unsqueeze(1))[0] # bmm used to implement outer product; remember activations have a leading singleton dimension
+            hebb = (1 - self.eta) * hebb + self.eta * torch.bmm(activin.unsqueeze(2), activout.unsqueeze(1))[0] # bmm used to implement outer product; remember activs have a leading singleton dimension
         elif self.rule == 'oja':
-            hebb = hebb + self.eta * torch.mul((activationin[0].unsqueeze(1) - torch.mul(hebb , activationout[0].unsqueeze(0))) , activationout[0].unsqueeze(0))  # Oja's rule. Remember that yin, yout are row vectors (dim (1,N)). Also, broadcasting!
+            hebb = hebb + self.eta * torch.mul((activin[0].unsqueeze(1) - torch.mul(hebb , activout[0].unsqueeze(0))) , activout[0].unsqueeze(0))  # Oja's rule. Remember that yin, yout are row vectors (dim (1,N)). Also, broadcasting!
         else:
             raise ValueError("Must select one learning rule ('hebb' or 'oja')")
 
-        return activationout, hebb
+        return activout, hebb
 
     def initialZeroHebb(self):
         #return Variable(torch.zeros(self.params['plastsize'], self.params['nbclasses']).type(ttype))
@@ -251,7 +255,7 @@ def train(paramdict=None):
     print("Passed params: ", params)
     print(platform.uname())
     sys.stdout.flush()
-    params['nbsteps'] = params['nbshots'] * ((params['prestime'] + params['interpresdelay']) * params['nbclasses']) + params['prestimetest']  # Total number of steps per episode
+    params['nbsteps'] = params['nbshots'] * ((params['prestime'] + params['ipd']) * params['nbclasses']) + params['prestimetest']  # Total number of steps per episode
     suffix = "".join([str(x)+"_" if pair[0] is not 'nbsteps' and pair[0] is not 'rngseed' and pair[0] is not 'save_every' and pair[0] is not 'test_every' else '' for pair in sorted(zip(params.keys(), params.values()), key=lambda x:x[0] ) for x in pair])[:-1] + "_rngseed_" + str(params['rngseed'])   # Turning the parameters into a nice suffix for filenames
 
     # Initialize random seeds (first two redundant?)
@@ -309,35 +313,31 @@ def train(paramdict=None):
     lossbetweensavesprev = 1e+10
     #test_every = 20
     nowtime = time.time()
+    
     print("Starting episodes...")
     sys.stdout.flush()
-
+    
     for numiter in range(params['nbiter']):
         
-        #if numiter == 158:
-        #    print("Random:", random.random(), np.random.random(), torch.rand(1))
-
         hebb = net.initialZeroHebb()
         optimizer.zero_grad()
 
-        # If this is a test step, then we use test data to generate the inputs, and we do NOT perform actual optimization - we just measure performance
         is_test_step = ((numiter+1) % params['test_every'] == 0)
-
         inputs, labels, target = generateInputsLabelsAndTarget(params, imagedata, test=is_test_step)
 
 
-        # Run the episode
         for numstep in range(params['nbsteps']):
             y, hebb = net(Variable(inputs[numstep], requires_grad=False), Variable(labels[numstep], requires_grad=False), hebb)
 
-        
+        # Compute the loss
         criterion = torch.nn.BCELoss()
         loss = criterion(y[0], Variable(target, requires_grad=False))
 
-        # Compute gradients and apply optimizer, only if this is not a test step
+        # Compute the gradients
         if is_test_step == False:
             loss.backward()
-            #maxg = 0.0
+            
+            maxg = 0.0
             scheduler.step()
             optimizer.step()
 
@@ -346,7 +346,6 @@ def train(paramdict=None):
         all_losses_objective.append(lossnum)
         #total_loss  += lossnum
 
-        # If this is a test step, print statistics and store data
         if is_test_step: # (numiter+1) % params['test_every'] == 0:
 
             print(numiter, "====")
@@ -357,6 +356,7 @@ def train(paramdict=None):
             #print("target: ", target.unsqueeze(0)[0][:10])
             absdiff = np.abs(td-yd)
             print("Mean / median / max abs diff:", np.mean(absdiff), np.median(absdiff), np.max(absdiff))
+            print("Correlation (full / sign): ", np.corrcoef(td, yd)[0][1], np.corrcoef(np.sign(td), np.sign(yd))[0][1])
             #print inputs[numstep]
             previoustime = nowtime
             nowtime = time.time()
@@ -371,7 +371,6 @@ def train(paramdict=None):
             #total_loss = 0
 
 
-        # Save files
         if (numiter+1) % params['save_every'] == 0:
             print("Saving files...")
             lossbetweensaves /= params['save_every']
@@ -379,7 +378,8 @@ def train(paramdict=None):
             print("Alternative computation (should be equal):", np.mean(all_losses_objective[-params['save_every']:]))
             losslast100 = np.mean(all_losses_objective[-100:])
             print("Average loss over the last 100 episodes:", losslast100)
-            # Instability detection; necessary for SELUs, which seem to be divergence-prone
+            # Instability detection; useful for SELUs, which seem to be divergence-prone
+            # NOTE: highly experimental!
             # Note that if we are unlucky enough to have diverged within the last 100 timesteps, this may not save us.
             #if losslast100 > 2 * lossbetweensavesprev: 
             #    print("We have diverged ! Restoring last savepoint!")
@@ -399,7 +399,7 @@ def train(paramdict=None):
                 for item in all_losses:
                     thefile.write("%s\n" % item)
             torch.save(net.state_dict(), 'torchmodel_'+localsuffix+'.txt')
-            # Uber-only stuff
+            # # Uber-only
             #print("Saving HDFS files...")
             #if checkHdfs():
             #    print("Transfering to HDFS...")
@@ -416,25 +416,24 @@ def train(paramdict=None):
 
 @click.command()
 @click.option('--nbclasses', default=defaultParams['nbclasses'])
-@click.option('--alphatype', default=defaultParams['alphatype'])
+@click.option('--alpha', default=defaultParams['alpha'])
 #@click.option('--plastsize', default=defaultParams['plastsize'])
 @click.option('--rule', default=defaultParams['rule'])
 @click.option('--gamma', default=defaultParams['gamma'])
 @click.option('--stepsizelr', default=defaultParams['stepsizelr'])
-@click.option('--activation', default=defaultParams['activation'])
+@click.option('--activ', default=defaultParams['activ'])
 @click.option('--flare', default=defaultParams['flare'])
 @click.option('--nbshots', default=defaultParams['nbshots'])
 @click.option('--nbfeatures', default=defaultParams['nbfeatures'])
 @click.option('--prestime', default=defaultParams['prestime'])
 @click.option('--prestimetest', default=defaultParams['prestimetest'])
-@click.option('--interpresdelay', default=defaultParams['interpresdelay'])
+@click.option('--ipd', default=defaultParams['ipd'])
 @click.option('--nbiter', default=defaultParams['nbiter'])
 @click.option('--lr', default=defaultParams['lr'])
 @click.option('--test_every', default=defaultParams['test_every'])
 @click.option('--save_every', default=defaultParams['save_every'])
 @click.option('--rngseed', default=defaultParams['rngseed'])
-#def main(nbclasses, alphatype, plastsize, rule, gamma, stepsizelr, activation, flare, nbshots, nbfeatures, prestime, prestimetest, interpresdelay, nbiter, lr, test_every, save_every, rngseed):
-def main(nbclasses, alphatype, rule, gamma, stepsizelr, activation, flare, nbshots, nbfeatures, prestime, prestimetest, interpresdelay, nbiter, lr, test_every, save_every, rngseed):
+def main(nbclasses, alpha, rule, gamma, stepsizelr, activ, flare, nbshots, nbfeatures, prestime, prestimetest, ipd, nbiter, lr, test_every, save_every, rngseed):
     train(paramdict=dict(click.get_current_context().params))
     #print(dict(click.get_current_context().params))
 
