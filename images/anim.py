@@ -38,8 +38,8 @@ import glob
 np.set_printoptions(precision=3)
 
 
-import pics_eta as pics
-from pics_eta import Network
+import images as pics
+from images import Network
 
 fig = plt.figure()
 plt.axis('off')

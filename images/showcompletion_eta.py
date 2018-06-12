@@ -37,8 +37,8 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 
-import pics_eta as pics
-from pics_eta import Network
+import images as pics
+from images import Network
 
 #plt.figure()
 
