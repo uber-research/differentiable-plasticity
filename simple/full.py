@@ -183,7 +183,7 @@ for numiter in range(params['nbiter']):
     # Apply backpropagation to adapt basic weights and plasticity coefficients
     loss.backward()
     optimizer.step()
-    net.zeroDiagAlpha()  # Make sure that no plastic autapses
+    #net.zeroDiagAlpha()  # Removes plastic autapses - turned out to be unneeded
 
     # That's it for the actual algorithm.
     # Print statistics, save files
