@@ -20,10 +20,10 @@
 # directory inside this directory.
 
 # To get the results shown in the paper:
-# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --rule oja --activ tanh --stepsizelr 1000000 --prestime 1 --gamma .666 --alpha free --lr 3e-5 
+# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --rule oja --activ tanh --steplr 1000000 --prestime 1 --gamma .666 --alpha free --lr 3e-5 
 
 # Alternative (using a shared, though still learned alpha across all connections): 
-# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --activ tanh --stepsizelr 1000000 --prestime 1 --gamma 0.3 --lr 1e-4 --alpha yoked 
+# python3 omniglot.py --nbclasses 5  --nbiter 5000000 --activ tanh --steplr 1000000 --prestime 1 --gamma 0.3 --lr 1e-4 --alpha yoked 
 
 # Note that this code uses click rather than argparse for command-line
 # parameter handling. I won't do that again.
@@ -49,11 +49,6 @@ from skimage import io
 import os
 import platform
 
-# Uber-only
-#import OpusHdfsCopy
-#from OpusHdfsCopy import transferFileToHdfsDir, checkHdfs
-
-
 import numpy as np
 import glob
 
@@ -67,20 +62,20 @@ defaultParams = {
     #'plastsize': 200,
     'rule': 'hebb',     # 'hebb' or 'oja'
     'alpha': 'free',   # 'free' of 'yoked' (if the latter, alpha is a single scalar learned parameter, shared across all connection)
-    'stepsizelr': 1e6,  # How often should we change the learning rate?
+    'steplr': 1e6,  # How often should we change the learning rate?
     'nbclasses': 5,
     'gamma': .666,  # The annealing factor of learning rate decay for Adam
     'flare': 0,     # Whether or not the ConvNet has more features in higher channels
     'nbshots': 1,  # Number of 'shots' in the few-shots learning
     'prestime': 1,
-    'nbfeatures' : 64,  # 128 is better (unsurprisingly) but we keep 64 for fair comparison with other reports
+    'nbf' : 64,  # Number of features. 128 is better (unsurprisingly) but we keep 64 for fair comparison with other reports
     'prestimetest': 1,
     'ipd': 0,  # Inter-presentation delay 
     'imgsize': 31,    
     'nbiter': 5000000,  
     'lr': 3e-5, 
     'test_every': 500,
-    'save_every': 5000,
+    'save_every': 10000,
     'rngseed':0
 }
 NBTESTCLASSES = 100
@@ -172,28 +167,28 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.rule = params['rule']
         if params['flare'] == 1:
-            self.cv1 = torch.nn.Conv2d(1, params['nbfeatures'] //4 , 3, stride=2).cuda()
-            self.cv2 = torch.nn.Conv2d(params['nbfeatures'] //4 , params['nbfeatures'] //4 , 3, stride=2).cuda()
-            self.cv3 = torch.nn.Conv2d(params['nbfeatures'] //4, params['nbfeatures'] //2, 3, stride=2).cuda()
-            self.cv4 = torch.nn.Conv2d(params['nbfeatures'] //2,  params['nbfeatures'], 3, stride=2).cuda()
+            self.cv1 = torch.nn.Conv2d(1, params['nbf'] //4 , 3, stride=2).cuda()
+            self.cv2 = torch.nn.Conv2d(params['nbf'] //4 , params['nbf'] //4 , 3, stride=2).cuda()
+            self.cv3 = torch.nn.Conv2d(params['nbf'] //4, params['nbf'] //2, 3, stride=2).cuda()
+            self.cv4 = torch.nn.Conv2d(params['nbf'] //2,  params['nbf'], 3, stride=2).cuda()
         else:
-            self.cv1 = torch.nn.Conv2d(1, params['nbfeatures'] , 3, stride=2).cuda()
-            self.cv2 = torch.nn.Conv2d(params['nbfeatures'] , params['nbfeatures'] , 3, stride=2).cuda()
-            self.cv3 = torch.nn.Conv2d(params['nbfeatures'] , params['nbfeatures'] , 3, stride=2).cuda()
-            self.cv4 = torch.nn.Conv2d(params['nbfeatures'] ,  params['nbfeatures'], 3, stride=2).cuda()
+            self.cv1 = torch.nn.Conv2d(1, params['nbf'] , 3, stride=2).cuda()
+            self.cv2 = torch.nn.Conv2d(params['nbf'] , params['nbf'] , 3, stride=2).cuda()
+            self.cv3 = torch.nn.Conv2d(params['nbf'] , params['nbf'] , 3, stride=2).cuda()
+            self.cv4 = torch.nn.Conv2d(params['nbf'] ,  params['nbf'], 3, stride=2).cuda()
         
         # Alternative architecture: have a separate layer of
         # plastic weights between the embedding and the output. We don't use
         # this in the paper.
-        #self.conv2plast = torch.nn.Linear(params['nbfeatures'], params['plastsize']).cuda()
+        #self.conv2plast = torch.nn.Linear(params['nbf'], params['plastsize']).cuda()
 
         # Notice that the vectors are row vectors, and the matrices are transposed wrt the usual order, following apparent pytorch conventions
         # Each *column* of w targets a single output neuron
         
-        self.w =  torch.nn.Parameter((.01 * torch.randn(params['nbfeatures'], params['nbclasses'])).cuda(), requires_grad=True)
+        self.w =  torch.nn.Parameter((.01 * torch.randn(params['nbf'], params['nbclasses'])).cuda(), requires_grad=True)
         #self.w =  torch.nn.Parameter((.01 * torch.rand(params['plastsize'], params['nbclasses'])).cuda(), requires_grad=True)
         if params['alpha'] == 'free':
-            self.alpha =  torch.nn.Parameter((.01 * torch.rand(params['nbfeatures'], params['nbclasses'])).cuda(), requires_grad=True) # Note: rand rather than randn (all positive)
+            self.alpha =  torch.nn.Parameter((.01 * torch.rand(params['nbf'], params['nbclasses'])).cuda(), requires_grad=True) # Note: rand rather than randn (all positive)
         elif params['alpha'] == 'yoked':
             self.alpha =  torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)
         else :
@@ -219,14 +214,14 @@ class Network(nn.Module):
             activ = F.tanh(self.cv4(activ))
         else:
             raise ValueError("Parameter 'activ' is incorrect (must be tanh, relu or selu)")
-        #activ = F.tanh(self.conv2plast(activ.view(1, self.params['nbfeatures'])))
+        #activ = F.tanh(self.conv2plast(activ.view(1, self.params['nbf'])))
         #activin = activ.view(-1, self.params['plastsize'])
-        activin = activ.view(-1, self.params['nbfeatures'])
+        activin = activ.view(-1, self.params['nbf'])
         
         if self.params['alpha'] == 'free':
-            activ = activin.mm( torch.mul(self.alpha, hebb)) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
+            activ = activin.mm( self.w + torch.mul(self.alpha, hebb)) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
         elif self.params['alpha'] == 'yoked':
-            activ = activin.mm( self.alpha * hebb) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
+            activ = activin.mm( self.w + self.alpha * hebb) + 1000.0 * inputlabel # The expectation is that a nonzero inputlabel will overwhelm the inputs and clamp the outputs
         activout = F.softmax( activ )
         
         if self.rule == 'hebb':
@@ -240,7 +235,7 @@ class Network(nn.Module):
 
     def initialZeroHebb(self):
         #return Variable(torch.zeros(self.params['plastsize'], self.params['nbclasses']).type(ttype))
-        return Variable(torch.zeros(self.params['nbfeatures'], self.params['nbclasses']).type(ttype))
+        return Variable(torch.zeros(self.params['nbf'], self.params['nbclasses']).type(ttype))
 
 
 
@@ -256,8 +251,8 @@ def train(paramdict=None):
     print(platform.uname())
     sys.stdout.flush()
     params['nbsteps'] = params['nbshots'] * ((params['prestime'] + params['ipd']) * params['nbclasses']) + params['prestimetest']  # Total number of steps per episode
-    suffix = "".join([str(x)+"_" if pair[0] is not 'nbsteps' and pair[0] is not 'rngseed' and pair[0] is not 'save_every' and pair[0] is not 'test_every' else '' for pair in sorted(zip(params.keys(), params.values()), key=lambda x:x[0] ) for x in pair])[:-1] + "_rngseed_" + str(params['rngseed'])   # Turning the parameters into a nice suffix for filenames
-
+    suffix = "W"+"".join([str(x)+"_" if pair[0] is not 'nbsteps' and pair[0] is not 'rngseed' and pair[0] is not 'save_every' and pair[0] is not 'test_every' else '' for pair in sorted(zip(params.keys(), params.values()), key=lambda x:x[0] ) for x in pair])[:-1] + "_rngseed_" + str(params['rngseed'])   # Turning the parameters into a nice suffix for filenames
+    print("Suffix: ", suffix, "length:", len(suffix))
     # Initialize random seeds (first two redundant?)
     print("Setting random seeds")
     np.random.seed(params['rngseed']); random.seed(params['rngseed']); torch.manual_seed(params['rngseed'])
@@ -303,7 +298,7 @@ def train(paramdict=None):
     #optimizer = torch.optim.Adam([net.w, net.alpha, net.eta], lr=params['lr'])
     optimizer = torch.optim.Adam(net.parameters(), lr=1.0*params['lr'])
     #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, params['gamma']) 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=params['gamma'], step_size=params['stepsizelr'])
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=params['gamma'], step_size=params['steplr'])
 
 
 
@@ -387,7 +382,7 @@ def train(paramdict=None):
             #else: # to "print("Saved!")"
             print("Saving local files...")
             localsuffix = suffix
-            if (numiter + 1) % 1000000 == 0:
+            if (numiter + 1) % 500000 == 0:
                 localsuffix = localsuffix + "_"+str(numiter+1)
             with open('results_'+localsuffix+'.dat', 'wb') as fo:
                 pickle.dump(net.w.data.cpu().numpy(), fo)
@@ -399,14 +394,13 @@ def train(paramdict=None):
                 for item in all_losses:
                     thefile.write("%s\n" % item)
             torch.save(net.state_dict(), 'torchmodel_'+localsuffix+'.txt')
-            # # Uber-only
-            #print("Saving HDFS files...")
-            #if checkHdfs():
-            #    print("Transfering to HDFS...")
-            #    transferFileToHdfsDir('results_'+localsuffix+'.dat', '/ailabs/tmiconi/omniglot-simple/')
-            #    transferFileToHdfsDir('loss_'+localsuffix+'.txt', '/ailabs/tmiconi/omniglot-simple/')
-            #    transferFileToHdfsDir('torchmodel_'+localsuffix+'.txt', '/ailabs/tmiconi/omniglot-simple/')
-            print("Saved!")
+            # # Uber-only 
+            if os.path.isdir('/mnt/share/tmiconi'):
+                print("Transferring to NFS storage...")
+                for fn in ['results_'+localsuffix+'.dat', 'loss_'+localsuffix+'.txt', 'torchmodel_'+localsuffix+'.txt']:
+                    result = os.system(
+                        'cp {} {}'.format(fn, '/mnt/share/tmiconi/omniglot-nfs/'+fn))
+                print("Done!")
             lossbetweensavesprev = lossbetweensaves
             lossbetweensaves = 0
             sys.stdout.flush()
@@ -420,11 +414,11 @@ def train(paramdict=None):
 #@click.option('--plastsize', default=defaultParams['plastsize'])
 @click.option('--rule', default=defaultParams['rule'])
 @click.option('--gamma', default=defaultParams['gamma'])
-@click.option('--stepsizelr', default=defaultParams['stepsizelr'])
+@click.option('--steplr', default=defaultParams['steplr'])
 @click.option('--activ', default=defaultParams['activ'])
 @click.option('--flare', default=defaultParams['flare'])
 @click.option('--nbshots', default=defaultParams['nbshots'])
-@click.option('--nbfeatures', default=defaultParams['nbfeatures'])
+@click.option('--nbf', default=defaultParams['nbf'])
 @click.option('--prestime', default=defaultParams['prestime'])
 @click.option('--prestimetest', default=defaultParams['prestimetest'])
 @click.option('--ipd', default=defaultParams['ipd'])
@@ -433,7 +427,7 @@ def train(paramdict=None):
 @click.option('--test_every', default=defaultParams['test_every'])
 @click.option('--save_every', default=defaultParams['save_every'])
 @click.option('--rngseed', default=defaultParams['rngseed'])
-def main(nbclasses, alpha, rule, gamma, stepsizelr, activ, flare, nbshots, nbfeatures, prestime, prestimetest, ipd, nbiter, lr, test_every, save_every, rngseed):
+def main(nbclasses, alpha, rule, gamma, steplr, activ, flare, nbshots, nbf, prestime, prestimetest, ipd, nbiter, lr, test_every, save_every, rngseed):
     train(paramdict=dict(click.get_current_context().params))
     #print(dict(click.get_current_context().params))
 

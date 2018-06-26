@@ -1,22 +1,8 @@
-# Copyright (c) 2018 Uber Technologies, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
 
-groupnames = glob.glob('./tmp/loss_*lr_0.0001*nbclasses_5*rngseed_0.txt')
+groupnames = glob.glob('./tmp/loss*rngseed_0.txt')
 #fnames = glob.glob('./tmp/loss_api_*.txt')
 #fnames = glob.glob('./tmp/loss_fixed_*.txt')
 
@@ -28,8 +14,11 @@ plt.ion()
 #plt.figure(figsize=(5,4))  # Smaller figure = relative larger fonts
 plt.figure()
 
-for groupname in groupnames:
+maxl = 100
+
+for numgroup, groupname in enumerate(groupnames):
     g = groupname[:-6]+"*"
+    print(g)
     fnames = glob.glob(g)
     fulllosses=[]
     losses=[]
@@ -41,9 +30,11 @@ for groupname in groupnames:
             continue
         z = np.loadtxt(fn)
         z = z[::10] # Decimation
+        #z = mavg(z, 100)
         lgts.append(len(z))
         fulllosses.append(z)
     minlen = min(lgts)
+    
     for z in fulllosses:
         losses.append(z[:minlen])
 
@@ -61,18 +52,20 @@ for groupname in groupnames:
     #highl = meanl+stdl
     #lowl = meanl-stdl
 
+    myls = '-'
+    if numgroup >= 8:
+        myls = '--'
     xx = range(len(meanl))
 
     # xticks and labels
-    xt = range(0, len(meanl), 2000)
-    #xtl = [str(200*i) for i in xt]  #200 = 20 episode per loss saving, plus the decimation above
-    xtl = [str(1000*i) for i in xt]  #1000 = 100 episode per loss saving, plus the decimation above
+    if len(meanl) > maxl:
+        maxl = len(meanl)
 
     #plt.plot(mavg(meanl, 100), label=g) #, color='blue')
-    #plt.fill_between(xx, lowl, highl,  alpha=.2)
+    #plt.fill_between(xx, lowl, highl,  alpha=.1)
     #plt.fill_between(xx, q1l, q3l,  alpha=.3)
     #plt.plot(meanl) #, color='blue')
-    plt.plot(mavg(medianl, 100), label=g) #, color='blue')  # mavg changes the number of points !
+    plt.plot(mavg(medianl, 10), label=g, ls=myls) #, color='blue')  # mavg changes the number of points !
     #plt.plot(mavg(q1l, 100), label=g, alpha=.3) #, color='blue')
     #plt.plot(mavg(q3l, 100), label=g, alpha=.3) #, color='blue')
     #plt.fill_between(xx, q1l, q3l,  alpha=.2)
@@ -82,6 +75,8 @@ plt.legend()
 #plt.xlabel('Loss (sum square diff. b/w final output and target)')
 plt.xlabel('Number of Episodes')
 plt.ylabel('Loss')
+xt = range(0, maxl, 100)
+xtl = [str(5000*i) for i in xt]  #5000 = 500 episode per loss saving, plus the decimation above
 plt.xticks(xt, xtl)
 plt.tight_layout()
 
