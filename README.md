@@ -22,9 +22,9 @@ Default parameters should be able to learn the task.
 
 ## Backpropamine network
 
-The `Network` class in `maze/maze.py` implements a Backpropamine network, that is, a neural
-network with neuromodulated Hebbian plastic connections that is trained by
-gradient descent.  
+The `Network` class in `maze/maze.py` implements a Backpropamine recurrent
+network, that is, a fully-connected recurrent neural network with
+neuromodulated Hebbian plastic connections that is trained by gradient descent.  
 
 Here is the full code for the `Network` class, which contains the entire machinery for Backpropamine (note that it only contains ~25 lines of code).
 
