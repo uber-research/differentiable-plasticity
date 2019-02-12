@@ -17,6 +17,9 @@ chosen for each episode, but fixed within an episode. Thus, performing the task
 requires finding the reward, memorizing its location and repeatedly navigating
 back to it.
 
+To run the program, just go to the `maze` directory and run `python3 maze.py`.
+Default parameters should be able to learn the task.
+
 ## Backpropamine network
 
 The `Network` class in `maze/maze.py` implements a Backpropamine network, that is, a neural
