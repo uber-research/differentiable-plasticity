@@ -1,4 +1,4 @@
-# Backpropamine: differentiable neuromdulated plasticity.
+# Backpropamine: differentiable neuromodulated plasticity.
 
 
 This code shows how to train neural networks with neuromodulated plastic connections, as described in Miconi et al. ICLR 2019 ( https://openreview.net/pdf?id=r1lrAiA5Ym ).
@@ -13,7 +13,7 @@ During each episode, the agent must explore a regular grid-shaped maze to find
 a reward location. When the agent hits the reward, it is randomly teleported
 within the maze. The agent's goal is to hit the reward as often as possible
 within an episode (200 time steps by default). The reward location is randomly
-chosen for each episode, but fixed within an episode. This, performing the task
+chosen for each episode, but fixed within an episode. Thus, performing the task
 requires finding the reward, memorizing its location and repeatedly navigating
 back to it.
 
@@ -23,7 +23,7 @@ The `Network` class in `maze/maze.py` implements a Backpropamine network, that i
 network with neuromodulated Hebbian plastic connections that is trained by
 gradient descent.  
 
-Here is the full code for the `Network` class, which contains the entire machinery for Backpropamine (note that it only contains ~25 lines of code!)
+Here is the full code for the `Network` class, which contains the entire machinery for Backpropamine (note that it only contains ~25 lines of code).
 
 ```python
 class Network(nn.Module):
