@@ -82,7 +82,7 @@ class Network(nn.Module):
 
 
         
-    def forward(self, inputs, hidden): # hidden is a tuple containing h-state, the hebbian trace and the eligibility trace
+    def forward(self, inputs, hidden): # hidden is a tuple containing the h-state and the hebbian trace 
             HS = self.hsize
         
             # hidden[0] is the h-state; hidden[1] is the Hebbian trace
