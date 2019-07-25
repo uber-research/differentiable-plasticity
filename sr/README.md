@@ -24,5 +24,7 @@ Usage:
 `python3 srbatch.py --eplen 120 --hs 200 --lr 1e-4 --l2 0 --pe 500 --bv 0.1 --bent 0.1 --rew 1 --wp 0 --save_every 2000 --type modul --da tanh --clamp 0 --nbiter 200000 --fm 1 --ni 4 --pf .0 --alg A3C --cs 20 --eps 1e-6 --is 0 --bs 30 --gc 2.0 --rngseed 0`
 
 
-`eplen' is the length of an episode, `hs` is the hidden/recurrent layer size, `bs` is batch size and `gc` is gradient clipping.
+`eplen` is the length of an episode, `hs` is the hidden/recurrent layer size, `bs` is batch size and `gc` is gradient clipping.
 `type` can be "modplast" (simple neuromodulation), "modul" (retroactive modulation), "plastic" (non-modulated plasticity) or "rnn" (no plasticity at all, plain rnn).
+
+Note that `srbatch.py` implements batch training: the first dimension in the data, the hidden state and the Hebbian traces is a batch dimension.

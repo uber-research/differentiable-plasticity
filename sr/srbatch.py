@@ -28,7 +28,7 @@ import numpy as np
 #import matplotlib.pyplot as plt
 import glob
 
-import modul
+import modul  # The code for the actual backrpopamine network
 
 
 
