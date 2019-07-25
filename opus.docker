@@ -1,0 +1,34 @@
+#tmiconi_rl
+#latest
+#.
+
+
+#FROM localhost:5000/opus-deep-learning:master-test-2017_9_7_20_56_10
+FROM opus-deep-learning-py3:master-prod-2019_2_5_4_54_39
+#FROM opus-deep-learning:master--2018_9_20_18_2_31
+
+
+
+
+RUN mkdir /home/work
+
+COPY ./sr/*.py /home/work/sr/
+COPY ./sr/*.md /home/work/sr/
+
+COPY ./maze/*.py /home/work/maze/
+COPY ./maze/*.md /home/work/maze/
+
+COPY ./simplemaze/*.py /home/work/simplemaze/
+COPY ./simplemaze/*.md /home/work/simplemaze/
+
+COPY ./awd-lstm-lm/*.py /home/work/awd-lstm-lm/
+COPY ./awd-lstm-lm/*.sh /home/work/awd-lstm-lm/
+COPY ./awd-lstm-lm/*.md /home/work/awd-lstm-lm/
+
+#COPY ./*.py /home/work/
+#COPY ./*.sh /home/work/
+#COPY ./*.md /home/work/
+
+ENV LC_ALL C.UTF-8
+ENV  LANG C.UTF-8
+

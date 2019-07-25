@@ -9,15 +9,16 @@
 # See the License file in this repository for the specific language governing 
 # permissions and limitations under the License.
 
-
-# This code implements the "Grid Maze" task. See Section 4.5 in Miconi et al. 
-# ICML 2018 ( https://arxiv.org/abs/1804.02464 ), or Section 4.2 in
+# This code implements the "Grid Maze" task. See section 4.2 in
 # Miconi et al. ICLR 2019 ( https://openreview.net/pdf?id=r1lrAiA5Ym )
+# or section 4.5 in Miconi et al. 
+# ICML 2018 ( https://arxiv.org/abs/1804.02464 )
 
-# The Network class implements a Backpropamine network, that is, a neural
+
+# The Network class implements a "backpropamine" network, that is, a neural
 # network with neuromodulated Hebbian plastic connections that is trained by
-# gradient descent.  The Backpropamine machinery is entirely contained in the
-# Network class (~25 lines of code). 
+# gradient descent. The Backpropamine machinery is
+# entirely contained in the Network class (~25 lines of code). 
 
 # The rest of the code implements a simple
 # A2C algorithm to train the network for the Grid Maze task.
@@ -60,7 +61,7 @@ TOTALNBINPUTS =  RFSIZE * RFSIZE + ADDITIONALINPUTS + NBACTIONS
 
 
 
-
+# RNN with trainable modulated plasticity ("backpropamine")
 class Network(nn.Module):
     
     def __init__(self, isize, hsize): 
@@ -68,7 +69,7 @@ class Network(nn.Module):
         self.hsize, self.isize  = hsize, isize 
 
         self.i2h = torch.nn.Linear(isize, hsize)    # Weights from input to recurrent layer
-        self.w =  torch.nn.Parameter(.001 * torch.rand(hsize, hsize))   # Baseline ("fixed") component of the plastic recurrent layer
+        self.w =  torch.nn.Parameter(.001 * torch.rand(hsize, hsize))   # Baseline (non-plastic) component of the plastic recurrent layer
         
         self.alpha =  torch.nn.Parameter(.001 * torch.rand(hsize, hsize))   # Plasticity coefficients of the plastic recurrent layer; one alpha coefficient per recurrent connection
         #self.alpha = torch.nn.Parameter(.0001 * torch.rand(1,1,hsize))  # Per-neuron alpha
@@ -82,7 +83,7 @@ class Network(nn.Module):
 
 
         
-    def forward(self, inputs, hidden): # hidden is a tuple containing the h-state and the hebbian trace 
+    def forward(self, inputs, hidden): # hidden is a tuple containing the h-state (i.e. the recurrent hidden state) and the hebbian trace 
             HS = self.hsize
         
             # hidden[0] is the h-state; hidden[1] is the Hebbian trace
@@ -90,7 +91,7 @@ class Network(nn.Module):
 
 
             # Each *column* of w, alpha and hebb contains the inputs weights to a single neuron
-            hactiv = torch.tanh( self.i2h(inputs) + hidden[0].unsqueeze(1).bmm(self.w + torch.mul(self.alpha, hebb)).squeeze(1)  )
+            hactiv = torch.tanh( self.i2h(inputs) + hidden[0].unsqueeze(1).bmm(self.w + torch.mul(self.alpha, hebb)).squeeze(1)  )  # Update the h-state
             activout = self.h2o(hactiv)  # Pure linear, raw scores - to be softmaxed later, outside the function
             valueout = self.h2v(hactiv)
 
@@ -98,10 +99,11 @@ class Network(nn.Module):
             deltahebb = torch.bmm(hidden[0].unsqueeze(2), hactiv.unsqueeze(1))  # Batched outer product of previous hidden state with new hidden state
             
             # We also need to compute the eta (the plasticity rate), wich is determined by neuromodulation
+            # Note that this is "simple" neuromodulation.
             myeta = F.tanh(self.h2mod(hactiv)).unsqueeze(2)  # Shape: BatchSize x 1 x 1
             
             # The neuromodulated eta is passed through a vector of fanout weights, one per neuron.
-            # Each *column* in w, hebb and alpha constitutes the inputs to a single cell
+            # Each *column* in w, hebb and alpha constitutes the inputs to a single cell.
             # For w and alpha, columns are 2nd dimension (i.e. dim 1); for hebb, it's dimension 2 (dimension 0 is batch)
             # The output of the following line has shape BatchSize x 1 x NHidden, i.e. 1 line and NHidden columns for each 
             # batch element. When multiplying by hebb (BatchSize x NHidden x NHidden), broadcasting will provide a different
@@ -118,12 +120,17 @@ class Network(nn.Module):
 
 
 
-    def initialZeroHebb(self, BATCHSIZE):
-        return Variable(torch.zeros(BATCHSIZE, self.hsize, self.hsize) , requires_grad=False)
 
     def initialZeroState(self, BATCHSIZE):
         return Variable(torch.zeros(BATCHSIZE, self.hsize), requires_grad=False )
 
+    # In plastic networks, we must also initialize the Hebbian state:
+    def initialZeroHebb(self, BATCHSIZE):
+        return Variable(torch.zeros(BATCHSIZE, self.hsize, self.hsize) , requires_grad=False)
+
+
+
+# That's it for plasticity! The rest of the code simply implements the maze task and the A2C RL algorithm.
 
 
 
@@ -256,28 +263,17 @@ def train(paramdict):
 
 
 
-            ## We randomly relocate the reward halfway through
-            #if numstep == reloctime:
-            #    rposr = 0; rposc = 0
-            #    while lab[rposr, rposc] == 1 or (rposr == CTR and rposc == CTR):
-            #        rposr = np.random.randint(1, LABSIZE - 1)
-            #        rposc = np.random.randint(1, LABSIZE - 1)
-
-
             inputs = np.zeros((BATCHSIZE, TOTALNBINPUTS), dtype='float32') 
         
             labg = lab.copy()
-            #labg[rposr, rposc] = -1  # The agent can see the reward if it falls within its RF
             for nb in range(BATCHSIZE):
                 inputs[nb, 0:RFSIZE * RFSIZE] = labg[posr[nb] - RFSIZE//2:posr[nb] + RFSIZE//2 +1, posc[nb] - RFSIZE //2:posc[nb] + RFSIZE//2 +1].flatten() * 1.0
                 
                 # Previous chosen action
                 inputs[nb, RFSIZE * RFSIZE +1] = 1.0 # Bias neuron
                 inputs[nb, RFSIZE * RFSIZE +2] = numstep / params['eplen']
-                #inputs[0, RFSIZE * RFSIZE +3] = 1.0 * reward # Reward from previous time step
                 inputs[nb, RFSIZE * RFSIZE +3] = 1.0 * reward[nb]
                 inputs[nb, RFSIZE * RFSIZE + ADDITIONALINPUTS + numactionschosen[nb]] = 1
-                #inputs = 100.0 * inputs  # input boosting : Very bad with clamp=0
             
             inputsC = torch.from_numpy(inputs).to(device)
 
@@ -291,8 +287,6 @@ def train(paramdict):
             logprobs.append(distrib.log_prob(actionschosen))
             numactionschosen = actionschosen.data.cpu().numpy()  # We want to break gradients
             reward = np.zeros(BATCHSIZE, dtype='float32')
-            #if numiter == 7 and numstep == 1:
-            #    pdb.set_trace()
 
 
             for nb in range(BATCHSIZE):
@@ -316,7 +310,6 @@ def train(paramdict):
                 if lab[tgtposr][tgtposc] == 1:
                     reward[nb] -= params['wp']
                 else:
-                    #dist += 1
                     posc[nb] = tgtposc
                     posr[nb] = tgtposr
 
