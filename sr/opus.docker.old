@@ -1,0 +1,18 @@
+#tmiconi_rl
+#latest
+#.
+
+
+#FROM localhost:5000/opus-deep-learning:master-test-2017_9_7_20_56_10
+#FROM opus-deep-learning:master-test-2018_1_3_0_38_14
+FROM opus-deep-learning:master-prod-2018_9_20_18_2_31
+
+
+
+RUN mkdir /home/work
+
+COPY ./*.py /home/work/
+
+ENV LC_ALL C.UTF-8
+ENV  LANG C.UTF-8
+

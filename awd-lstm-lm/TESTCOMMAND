@@ -1,0 +1,1 @@
+python test.py  --model MYLSTM --nhid 1150 --file ./HDFS/ptb/model__SqUsq_MYLSTM_clip_cv2.0_modplasth2mod_fanout_i2c_perneuron_asgdtime125_agdiv1150_lr30_3l_1150h_0.5lstm_rngseed1.dat

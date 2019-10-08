@@ -1,0 +1,10 @@
+maintmp.py
+HDFS/
+*.patch
+model_*
+results_*
+*.pt
+*.swp
+__pycache__/
+data/
+corpus*
