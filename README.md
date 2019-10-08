@@ -2,6 +2,8 @@
 
 This repo contains implementations of the algorithms described in [Differentiable plasticity: training plastic networks with gradient descent](https://arxiv.org/abs/1804.02464), a research paper from Uber AI Labs.
 
+NOTE: please see also our more recent work on differentiable *neuromodulated* plasticity: the "[backpropamine](https://github.com/uber-research/backpropamine)" framework.
+
 There are four different experiments included here:
 
 - `simple`: Binary pattern memorization and completion. Read this one first!

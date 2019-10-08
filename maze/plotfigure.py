@@ -1,19 +1,3 @@
-# Code for making a figure
-#
-# Copyright (c) 2018 Uber Technologies, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
@@ -22,11 +6,19 @@ from scipy import stats
 
 colorz = ['r', 'b', 'g', 'c', 'm', 'y', 'orange', 'k']
 
-groupnames = glob.glob('./tmp/loss_*new*eplen_251*rngseed_0.txt')  
+
+groupnames = glob.glob('./tmpWorked/loss_*absize_11_*rngseed_1.txt')  
+#groupnames = glob.glob('./tmp8/loss_*eplen_251*densize_200*absize_11_*ndstart_1*rngseed_1.txt')  
+#groupnames = glob.glob('./tmp8/loss_*eplen_251*densize_200*absize_11_*ndstart_1*rngseed_1.txt')  
+
+
+#groupnames = glob.glob('./tmp/loss_*new*eplen_251*rngseed_0.txt')  
 #groupnames = glob.glob('./tmp/loss_*new*eplen_250*rngseed_0.txt')  
 
 plt.rc('font', size=14)
 
+
+# If you can only use 7 runs, smooth the losses within each run to obtain more reliable estimates of performance!
 
 
 def mavg(x, N):
@@ -51,16 +43,23 @@ for numgroup, groupname in enumerate(groupnames):
     losses=[]
     lgts=[]
     for fn in fnames:
+        if False:
+            if "seed_7" in fn:
+                continue
+            if "seed_8" in fn:
+                continue
+
 
         z = np.loadtxt(fn)
         
-        z = mavg(z, 10)  # For each run, we average the losses over K successive episodes - otherwise figure is unreadable due to noise!
+        z = mavg(z, 20)  # For each run, we average the losses over K successive episodes - otherwise figure is unreadable due to noise!
 
         z = z[::10] # Decimation - speed things up!
+        z = mavg(z, 10)
 
-        z = z[:2001]
+        #z = z[:5001]
         
-        if len(z) < 1000:
+        if len(z) < 9000:
             print(fn)
             continue
         #z = z[:90]
@@ -96,11 +95,14 @@ for numgroup, groupname in enumerate(groupnames):
     xx = range(len(meanl))
 
     # xticks and labels
-    xt = range(0, len(meanl), 500)
+    #xt = range(0, len(meanl), 2000)
+    xt = range(0, 10001, 2000)
     xtl = [str(10 * 10 * i) for i in xt]   # Because of decimation above, and only every 10th loss is recorded in the files
 
     if "plastic" in groupname:
         lbl = "Plastic"
+    if "homo" in groupname:
+        lbl = "Homogenous Plastic"
     elif "rnn" in groupname:
         lbl = "Non-plastic"
 
@@ -138,8 +140,7 @@ ps = []
 for n in range(0, minminlen):
     ps.append(scipy.stats.ranksums(alllosses[0][:,n], alllosses[1][:,n]).pvalue)
 ps = np.array(ps)
-np.mean(ps[-500:] < .05)
-np.mean(ps[-500:] < .01)
+print(np.mean(ps[-500:] < .05), np.mean(ps[-500:] < .01))
 
 plt.legend(loc='best', fontsize=14)
 #plt.xlabel('Loss (sum square diff. b/w final output and target)')
