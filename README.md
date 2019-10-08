@@ -41,13 +41,12 @@ We strongly recommend studying the `simplemaze` experiment first, as it is delib
 
 ## Copyright and licensing information
 
-Copyright (c) 2018-2019 Uber Technologies, Inc.
+Copyright (c) 2017-2019 Uber Technologies, Inc.
 
-All code except for `awd-lstm` is licensed under the Uber Non-Commercial License (the "License");
+All code is licensed under the Uber Non-Commercial License (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at the root directory of this project. 
 
 See the LICENSE file in this repository for the specific language governing 
 permissions and limitations under the License. 
 
-The `awd-lstm-lm` code is forked from the [Salesforce Language Modeling toolkit](https://github.com/salesforce/awd-lstm-lm), which implements the Merity et al. 2018 model. See NOTICE.md.
