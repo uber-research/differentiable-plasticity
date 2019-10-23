@@ -18,7 +18,9 @@
 
 
 # NOTE: Do NOT use the 'lstmplastic' in this code. Instead, look at the
-# awd-lstm-lm directory in this repo for properly implemented plastic LSTMs.
+# awd-lstm-lm directory in the Backpropamine repo
+# (https://github.com/uber-research/backpropamine) for properly implemented
+# plastic LSTMs.
 
 
 import argparse
@@ -94,7 +96,7 @@ class Network(nn.Module):
             self.eta = torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)  # Everyone has the same eta
 
 
-        elif params['type'] == 'lstmplastic':   # LSTM with plastic connections. HIGHLY EXPERIMENTAL, NOT DEBUGGED - see awd-lstm-lm directory in this repo instead.
+        elif params['type'] == 'lstmplastic':   # LSTM with plastic connections. HIGHLY EXPERIMENTAL, NOT DEBUGGED - see awd-lstm-lm directory at https://github.com/uber-research/backpropamine instead.
             self.h2f = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()
             self.h2i = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()
             self.h2opt = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()
