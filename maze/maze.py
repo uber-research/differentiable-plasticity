@@ -16,7 +16,10 @@
 #    limitations under the License.
 
 
-# (Note: this contains an EXTREMELY EXPERIMENTAL implementation of an LSTM with plastic connections)
+
+# NOTE: Do NOT use the 'lstmplastic' in this code. Instead, look at the
+# awd-lstm-lm directory in this repo for properly implemented plastic LSTMs.
+
 
 import argparse
 import pdb 
@@ -89,7 +92,9 @@ class Network(nn.Module):
             self.w =  torch.nn.Parameter((.01 * torch.rand(params['hiddensize'], params['hiddensize'])).cuda(), requires_grad=True)
             self.alpha =  torch.nn.Parameter((.01 * torch.rand(params['hiddensize'], params['hiddensize'])).cuda(), requires_grad=True)
             self.eta = torch.nn.Parameter((.01 * torch.ones(1)).cuda(), requires_grad=True)  # Everyone has the same eta
-        elif params['type'] == 'lstmplastic':   # LSTM with plastic connections. HIGHLY EXPERIMENTAL, NOT DEBUGGED
+
+
+        elif params['type'] == 'lstmplastic':   # LSTM with plastic connections. HIGHLY EXPERIMENTAL, NOT DEBUGGED - see awd-lstm-lm directory in this repo instead.
             self.h2f = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()
             self.h2i = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()
             self.h2opt = torch.nn.Linear(params['hiddensize'], params['hiddensize']).cuda()

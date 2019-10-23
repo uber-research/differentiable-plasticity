@@ -333,10 +333,10 @@ def train(paramdict):
             loss += ( params['bent'] * y.pow(2).sum() / BATCHSIZE )  
 
 
-            if PRINTTRACE:
-                print("Step ", numstep, " Inputs (to 1st in batch): ", inputs[0, :TOTALNBINPUTS], " - Outputs(1st in batch): ", y[0].data.cpu().numpy(), " - action chosen(1st in batch): ", numactionschosen[0],
-                        #" - mean abs pw: ", np.mean(np.abs(pw.data.cpu().numpy())), 
-                        " -Reward (this step, 1st in batch): ", reward[0])
+            #if PRINTTRACE:
+            #    print("Step ", numstep, " Inputs (to 1st in batch): ", inputs[0, :TOTALNBINPUTS], " - Outputs(1st in batch): ", y[0].data.cpu().numpy(), " - action chosen(1st in batch): ", numactionschosen[0],
+            #            #" - mean abs pw: ", np.mean(np.abs(pw.data.cpu().numpy())), 
+            #            " -Reward (this step, 1st in batch): ", reward[0])
 
 
 
@@ -358,7 +358,7 @@ def train(paramdict):
         loss /= params['eplen']
 
         if PRINTTRACE:
-            if True: #params['algo'] == 'A3C':
+            if True: 
                 print("lossv: ", float(lossv))
             print ("Total reward for this episode (all):", sumreward, "Dist:", dist)
 
@@ -366,15 +366,12 @@ def train(paramdict):
         all_grad_norms.append(torch.nn.utils.clip_grad_norm(net.parameters(), params['gc']))
         if numiter > 100:  # Burn-in period for meanrewards
             optimizer.step()
-            #pdb.set_trace()
 
 
         lossnum = float(loss)
         lossbetweensaves += lossnum
         all_losses_objective.append(lossnum)
         all_total_rewards.append(sumreward.mean())
-            #all_losses_v.append(lossv.data[0])
-        #total_loss  += lossnum
 
 
         if (numiter+1) % params['pe'] == 0:
@@ -394,18 +391,6 @@ def train(paramdict):
             losslast100 = np.mean(all_losses_objective[-100:])
             print("Average loss over the last 100 episodes:", losslast100)
             print("Saving local files...")
-            #with open('params_'+suffix+'.dat', 'wb') as fo:
-            #        #pickle.dump(net.w.data.cpu().numpy(), fo)
-            #        #pickle.dump(net.alpha.data.cpu().numpy(), fo)
-            #        #pickle.dump(net.eta.data.cpu().numpy(), fo)
-            #        #pickle.dump(all_losses, fo)
-            #        pickle.dump(params, fo)
-            #with open('loss_'+suffix+'.txt', 'w') as thefile:
-            #    for item in all_losses_objective:
-            #            thefile.write("%s\n" % item)
-            #with open('lossv_'+suffix+'.txt', 'w') as thefile:
-            #    for item in all_losses_v:
-            #            thefile.write("%s\n" % item)
             with open('grad_'+suffix+'.txt', 'w') as thefile:
                 for item in all_grad_norms[::10]:
                         thefile.write("%s\n" % item)
@@ -421,10 +406,6 @@ def train(paramdict):
                     result = os.system(
                         'cp {} {}'.format(fn, '/mnt/share/tmiconi/modulmaze/'+fn))
                 print("Done!")
-#            lossbetweensavesprev = lossbetweensaves
-#            lossbetweensaves = 0
-#            sys.stdout.flush()
-#            sys.stderr.flush()
 
 
 
@@ -436,8 +417,6 @@ if __name__ == "__main__":
     parser.add_argument("--wp", type=float, help="penalty for hitting walls", default=.0)
     parser.add_argument("--bent", type=float, help="coefficient for the entropy reward (really Simpson index concentration measure)", default=0.03)
     parser.add_argument("--blossv", type=float, help="coefficient for value prediction loss", default=.1)
-    #parser.add_argument("--rule", help="learning rule ('hebb' or 'oja')", default='hebb')
-    #parser.add_argument("--type", help="network type ('lstm' or 'rnn' or 'plastic')", default='modul')
     parser.add_argument("--msize", type=int, help="size of the maze; must be odd", default=11)
     parser.add_argument("--gr", type=float, help="gammaR: discounting factor for rewards", default=.9)
     parser.add_argument("--gc", type=float, help="gradient norm clipping", default=4.0)
@@ -447,14 +426,10 @@ if __name__ == "__main__":
     parser.add_argument("--bs", type=int, help="batch size", default=30)
     parser.add_argument("--l2", type=float, help="coefficient of L2 norm (weight decay)", default=0) # 3e-6
     parser.add_argument("--nbiter", type=int, help="number of learning cycles", default=1000000)
-    parser.add_argument("--save_every", type=int, help="number of cycles between successive save points", default=200)
-    parser.add_argument("--pe", type=int, help="number of cycles between successive printing of information", default=100)
+    parser.add_argument("--save_every", type=int, help="number of cycles between successive save points", default=50)
+    parser.add_argument("--pe", type=int, help="number of cycles between successive printing of information", default=10)
     args = parser.parse_args(); argvars = vars(args); argdict =  { k : argvars[k] for k in argvars if argvars[k] != None }
     
     train(argdict)
-    #lp = LineProfiler()
-    #lpwrapper = lp(train)
-    #lpwrapper(argdict)
-    #lp.print_stats()
 
 
